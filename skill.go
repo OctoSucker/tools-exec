@@ -25,7 +25,7 @@ type SkillExec struct {
 	dockerBinary   string
 }
 
-func (s *SkillExec) Init(config map[string]interface{}) error {
+func (s *SkillExec) Init(config map[string]interface{}, submitTask func(string) error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -148,8 +148,8 @@ func (s *SkillExec) isBlacklisted(cmdLine string) bool {
 	return false
 }
 
-func RegisterExecSkill(registry *tools.ToolRegistry, agent interface{}) error {
-	registry.Register(&tools.Tool{
+func (s *SkillExec) Register(registry *tools.ToolRegistry, agent interface{}, providerName string) error {
+	registry.RegisterTool(providerName, &tools.Tool{
 		Name:        "run_command",
 		Description: "在指定工作目录下执行一条命令，支持超时与可选环境变量。工作目录必须在配置的 workspace_dirs 白名单内；禁止无工作目录或根目录 /。超时到点会终止进程。返回中有 stdout、stderr、exit_code。若用户要求把命令执行结果发给他（如 Telegram），必须将返回的 stdout 用 send_telegram_message 发回，不要只输出总结而不发送。",
 		Parameters: map[string]interface{}{
@@ -302,16 +302,9 @@ var globalSkillExec *SkillExec
 
 func init() {
 	globalSkillExec = &SkillExec{}
-	tools.RegisterToolProviderWithMetadata(
-		providerName,
-		tools.ToolProviderMetadata{
-			Name:        providerName,
-			Version:     "0.1.0",
-			Description: "执行 - 在工作区目录内执行命令，带超时与安全策略",
-			Author:      "OctoSucker",
-			Tags:        []string{"exec", "command", "shell", "runtime"},
-		},
-		RegisterExecSkill,
-		globalSkillExec,
-	)
+	tools.RegisterToolProvider(&tools.ToolProviderInfo{
+		Name:        providerName,
+		Description: "执行 - 在工作区目录内执行命令，带超时与安全策略",
+		Provider:    globalSkillExec,
+	})
 }
